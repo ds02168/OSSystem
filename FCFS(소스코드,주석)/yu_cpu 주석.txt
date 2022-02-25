@@ -1,0 +1,106 @@
+#include <linux/unistd.h>
+#include <linux/errno.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
+//헤더 파일 참조
+
+// 사용할 상수들을 정의합니다.
+#define IDLE '\0' // 커널에서 작성한 소스코드이기때문에 stdio.h의 NULL을 불러들여 사용할수 없습니다.
+                       // 따라서 표준인 '\0' ASCII코드로 구현하여야 합니다.
+                       // 큐의 빈상태 IDLE 정의
+
+//큐에 들어갈 구조체를 정의합니다.
+typedef struct que{
+    pid_t pids; // 프로세서의 PID
+    int jobs;  // 처리해야할 작업량
+}FCFS; // FCFS로 별명
+
+FCFS queue[10]; //큐 구현 
+
+int front=0; //맨앞 index
+int rear=0; //맨뒤 index
+pid_t now = '\0'; //IDLE과 마찬가지로 null을 '\0'로 초기화
+
+
+//큐가 비어있는지 확인하는 함수
+int is_empty(void)
+{
+    if(front==rear) //front와 rear가 같다면(비어있다면)
+        return 1; //1을 반환(참)
+    else //같지 않다면
+        return 0; // 0을 반환(거짓)
+}
+
+// 큐에서 맨앞(가장먼저 들어온) 프로세스의 PID를 빼는 함수
+pid_t pop(void)
+{
+    if(front==rear) //큐가 비어있다면
+    {
+        printk("queue is empty!\n"); //empty출력
+        return '\0'; //null을 반환하고 종료
+    }
+    return queue[front++].pids; //현재가리키고있는 PID를 리턴하고 front+1
+}
+
+//처음들어온 process인지 확인하는 함수
+int is_new(pid_t pid)
+{
+    int i;
+    for(i=front;i<rear;i++) //현재 가장앞부터 맨뒤 까지
+    {
+        if(pid==queue[i].pids) //PID가 일치하는 배열의 원소가 있으면
+        {
+            return 0; // 0반환(거짓)
+        }
+    }
+        return 1; //없다면 1반환(참)
+}
+
+//큐에 PID를 추가하는 함수
+void push(pid_t pid, int job)
+{
+    if(rear==10) //큐가 가득 찼다면
+    {
+        printk("queue is full\n"); //메세지 출력
+        return; //종료
+    }
+    queue[rear].pids = pid; //pid입력
+    queue[rear].jobs = job; //초기 job할당량 입력
+    rear++; //rear는 다음 index를 가리킴
+}
+
+//밑은 ppt와 같습니다.
+asmlinkage int sys_yu_cpu(char name[4], int job)
+{
+    pid_t pid = current->pid;
+    if(now == IDLE)
+        now = pid;
+
+    if(now == pid)
+    {
+        if(job == 0)
+        {
+            printk("Process finished: %s\n", name);
+            if(is_empty())
+                now = IDLE;
+            else
+                now = pop();
+        }
+        else
+            printk("Working: %s\n", name);
+
+        return 1;
+
+    }
+    else
+    {
+        if(is_new(pid))
+            push(pid, job);
+
+        printk("Working denied: %s\n", name);
+
+    }
+
+    return 0;
+}
+EXPORT_SYMBOL_GPL(sys_yu_cpu);

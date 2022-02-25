@@ -1,0 +1,48 @@
+#include <linux/unistd.h>
+#include <stdio.h>
+#include <string.h>
+
+#define YU_CPU 385
+
+int main(int argc, char **argv)
+{
+    int job;
+    int delay;
+    char name[4];
+    int wait = 0;
+
+    if (argc != 4)  // 프로그램실행시 argument 갯수가 4보다 큰경우도 Error handling 하기위해
+    {                 //  <연산자를 !=로 4가아닐시 에러조건으로 수정하였습니다.
+        printf("Insufficient arguments.\n");
+        return 1;
+    }
+
+    job = atoi(argv[1]);
+    delay = atoi(argv[2]);
+    strcpy(name, argv[3]);
+
+    sleep(delay);
+    printf("\nProcess-%s : I will use CPU by %ds", name, job);
+    job *= 10;
+    
+    if(job < 0)  // job이 0이아니라면 while문에서 job은 계속 음 이므로 무한루프에 빠지게 됩니다.
+    {              // while문에 job이 0인지 판별하기전에 음수인지 먼저 Error handling 해줍니다.
+        printf("Insufficient job.\n");
+        return 1;
+    }
+
+    while(job)
+    {
+        if(syscall(YU_CPU, name, job))
+            job--;
+        else
+            wait++;
+        usleep(100000);
+    }
+    syscall(YU_CPU, name, 0);
+    printf("\nProcess-%s : Finished! My total wait time is %ds\n", name, (wait + 5) / 10);
+    return 0;
+}
+
+
+
